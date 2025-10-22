@@ -140,7 +140,7 @@ kubectl apply -f db-service.yaml
 kubectl apply -f database_deployment.yaml
 kubectl apply -f backend_service.yaml
 kubectl apply -f backend_deployment.yaml
-kubectl apply -f proxy_service.yaml
+kubectl apply -f proxy_nodeport.yaml
 kubectl apply -f proxy_deployment.yaml
 ```
 ### 4. Access the Application (Minikube)
