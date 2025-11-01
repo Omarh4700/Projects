@@ -130,27 +130,27 @@ pipeline {
 
     // --- Stage 6: Notification ---
     post {
-    success {
-        mail to: 'hassanomar4700@gmail.com',
-             subject: "Jenkins Build #${BUILD_NUMBER} Succeeded",
-             body: """\
-                The Jenkins build #${BUILD_NUMBER} has completed successfully.
+        success {
+            mail to: 'hassanomar4700@gmail.com',
+                 subject: "Jenkins Build #${BUILD_NUMBER} Succeeded",
+                 body: """\
+                    The Jenkins build #${BUILD_NUMBER} has completed successfully.
 
-                Project: ${JOB_NAME}
-                Build URL: ${BUILD_URL}
-                """
-    }
-    failure {
-        mail to: 'hassanomar4700@gmail.com',
-             subject: "Jenkins Build #${BUILD_NUMBER} Failed",
-             body: """\
-                The Jenkins build #${BUILD_NUMBER} has failed.
+                    Project: ${JOB_NAME}
+                    Build URL: ${BUILD_URL}
+                    """
+        }
+        failure {
+            mail to: 'hassanomar4700@gmail.com',
+                 subject: "Jenkins Build #${BUILD_NUMBER} Failed",
+                 body: """\
+                    The Jenkins build #${BUILD_NUMBER} has failed.
 
-                Project: ${JOB_NAME}
-                Build URL: ${BUILD_URL}
+                    Project: ${JOB_NAME}
+                    Build URL: ${BUILD_URL}
 
-                Please check the Jenkins logs for details.
-                """
+                    Please check the Jenkins logs for details.
+                    """
             }
         }
     }
