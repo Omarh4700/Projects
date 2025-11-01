@@ -2,37 +2,39 @@ pipeline {
     agent {
         kubernetes {
             label 'jenkins-agent'
+            defaultContainer 'docker'
             yaml """
 apiVersion: v1
 kind: Pod
 spec:
   serviceAccountName: jenkins
   containers:
-    - name: kaniko
-      image: gcr.io/kaniko-project/executor:latest
+    - name: docker
+      image: docker:27-cli
       command:
         - cat
       tty: true
+      securityContext:
+        privileged: true
       volumeMounts:
-        - name: docker-config
-          mountPath: /kaniko/.docker
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
     - name: helm
       image: alpine/helm:3.13.1
       command:
         - cat
       tty: true
   volumes:
-    - name: docker-config
-      projected:
-        sources:
-          - secret:
-              name: dockerhub-secret
+    - name: docker-sock
+      hostPath:
+        path: /var/run/docker.sock
 """
         }
     }
 
     environment {
         REGISTRY = "docker.io/omar4700"
+        Docker_Cred = credentials('DockerHub-Cred')
         NAMESPACE = "dev"
     }
 
@@ -47,15 +49,31 @@ spec:
             }
         }
 
-        stage('Build & Push Images') {
+        stage('Build Images') {
             steps {
-                container('kaniko') {
+                container('docker') {
                     script {
-                        echo "Building and pushing Docker images..."
+                        echo "Building Docker images with tag: ${BUILD_NUMBER}"
                         sh """
-                            /kaniko/executor --context ./backend --destination=${REGISTRY}/backend:${BUILD_NUMBER}
-                            /kaniko/executor --context ./proxy --destination=${REGISTRY}/proxy:${BUILD_NUMBER}
-                            /kaniko/executor --context ./database --destination=${REGISTRY}/database:${BUILD_NUMBER}
+                            docker build -t ${REGISTRY}/backend:${BUILD_NUMBER} ./backend
+                            docker build -t ${REGISTRY}/proxy:${BUILD_NUMBER} ./proxy
+                            docker build -t ${REGISTRY}/database:${BUILD_NUMBER} ./database
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Push Images') {
+            steps {
+                container('docker') {
+                    script {
+                        echo "Pushing Docker images to registry..."
+                        sh """
+                            echo $Docker_Cred_PSW | docker login -u $Docker_Cred_USR --password-stdin
+                            docker push ${REGISTRY}/backend:${BUILD_NUMBER}
+                            docker push ${REGISTRY}/proxy:${BUILD_NUMBER}
+                            docker push ${REGISTRY}/database:${BUILD_NUMBER}
                         """
                     }
                 }
@@ -66,7 +84,7 @@ spec:
             steps {
                 container('helm') {
                     script {
-                        echo "Deploying application to Kubernetes..."
+                        echo "Deploying application to Kubernetes using Helm..."
                         sh """
                             helm upgrade --install myapp ./helm-chart \
                             --namespace ${NAMESPACE} \
@@ -78,5 +96,29 @@ spec:
                 }
             }
         }
+    }
+
+    post {
+    success {
+        mail to: 'hassanomar4700@gmail.com',
+             subject: "Jenkins Build #${BUILD_NUMBER} Succeeded",
+             body: """\
+                The Jenkins build #${BUILD_NUMBER} has completed successfully.
+
+                Project: ${JOB_NAME}
+                Build URL: ${BUILD_URL}
+                """
+    }
+    failure {
+        mail to: 'hassanomar4700@gmail.com',
+             subject: "Jenkins Build #${BUILD_NUMBER} Failed",
+             body: """\
+                The Jenkins build #${BUILD_NUMBER} has failed.
+
+                Project: ${JOB_NAME}
+                Build URL: ${BUILD_URL}
+
+                Please check the Jenkins logs for details.
+                """
     }
 }
