@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: jenkins
+  name: jenkins
+  namespace: jenkins
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      containers:
+      - image: jenkins/jenkins:jdk21
+        name: jenkins
+        resources: {}
+status: {}
