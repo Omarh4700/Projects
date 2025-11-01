@@ -30,7 +30,7 @@ spec:
 
     environment {
         REGISTRY = "docker.io/omar4700"
-        Docker_Cred = credentials('DockerHub-Credentials')
+        Docker_Cred = credentials('DockerHub-Cred')
         NAMESPACE = "dev"
     }
 
