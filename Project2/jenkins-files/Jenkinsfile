@@ -8,10 +8,14 @@ apiVersion: v1
 kind: Pod
 metadata:
   labels:
-    some-label: jenkins-agent
+    jenkins: slave
 spec:
   serviceAccountName: jenkins
   containers:
+    - name: jnlp
+      image: jenkins/inbound-agent:latest
+      args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
+      tty: true
     - name: docker
       image: docker:27-cli
       command:
