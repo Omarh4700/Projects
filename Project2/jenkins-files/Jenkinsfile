@@ -2,10 +2,13 @@ pipeline {
     agent {
         kubernetes {
             label 'jenkins-agent'
-            defaultContainer 'docker'
+            defaultContainer 'jnlp'
             yaml """
 apiVersion: v1
 kind: Pod
+metadata:
+  labels:
+    some-label: jenkins-agent
 spec:
   serviceAccountName: jenkins
   containers:
@@ -39,14 +42,15 @@ spec:
     }
 
     stages {
-
         stage('Checkout Code') {
             steps {
-                echo "Checking out code..."
-                checkout scmGit(
-                    branches: [[name: '*/main']],
-                    userRemoteConfigs: [[url: 'https://github.com/Omarh4700/Projects.git']]
-                )
+                container('jnlp') {
+                    echo "Checking out code..."
+                    checkout scmGit(
+                        branches: [[name: '*/main']],
+                        userRemoteConfigs: [[url: 'https://github.com/Omarh4700/Projects.git']]
+                    )
+                }
             }
         }
 
