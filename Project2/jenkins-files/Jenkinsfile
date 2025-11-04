@@ -1,0 +1,123 @@
+pipeline {
+    // 1. Agent
+    agent {
+        label 'jenkins-agent'
+    }
+
+    // 2. Environment
+    environment {
+        REGISTRY        = "docker.io/omar4700"
+        DOCKER_CRED_ID  = "DockerHub-Cred" 
+        NAMESPACE       = "dev"
+        
+        BACKEND_IMAGE   = "${REGISTRY}/backend:${env.BUILD_NUMBER}"
+        PROXY_IMAGE     = "${REGISTRY}/proxy:${env.BUILD_NUMBER}"
+        
+        APP_HEALTH_URL  = "https://proxy.${NAMESPACE}.svc.cluster.local"
+    }
+
+    // 3. Stages for the Pipeline
+    stages {
+
+        // --- Stage 1: Source ---
+        stage('Source') {
+            steps {
+                echo "Pulling code from GitHub..."
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[url: 'https://github.com/Omarh4700/Projects.git']]
+                ])
+                echo "Code checkout complete."
+                sh 'ls -la'
+            }
+        }
+
+        // --- Stage 2: Build ---
+        stage('Build') {
+            steps {
+                echo "Building Docker images..."
+                container('docker') {
+                    sh "docker build -t ${BACKEND_IMAGE} -f ./Project2/Appfiles/Dockerfile ./Project2/Appfiles"
+                    sh "docker build -t ${PROXY_IMAGE} -f ./Project2/Appfiles/nginx/Dockerfile ./Project2/Appfiles/nginx"
+                }
+                echo "Docker images built."
+            }
+        }
+
+        // --- Stage 3: Push ---
+        stage('Push') {
+            steps {
+                echo "Pushing images to ${REGISTRY}..."
+                container('docker') {
+                    withCredentials([usernamePassword(credentialsId: DOCKER_CRED_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh "echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin docker.io"
+                        sh "docker push ${BACKEND_IMAGE}"
+                        sh "docker push ${PROXY_IMAGE}"
+                    }
+                }
+                echo "Docker images pushed."
+            }
+        }
+
+        // --- Stage 4: Deploy ---
+        stage('Deploy') {
+            steps {
+                echo "Deploying application chart to ${NAMESPACE} namespace..."
+                container('helm') {
+                    sh """
+                        set -e
+                        
+                        helm upgrade --install k8s-app ./Project2/jenkins-files/k8s-files \
+                            --namespace ${NAMESPACE} \
+                            --set backend.image.repository=${REGISTRY}/backend \
+                            --set backend.image.tag=${env.BUILD_NUMBER} \
+                            --set proxy.image.repository=${REGISTRY}/proxy \
+                            --set proxy.image.tag=${env.BUILD_NUMBER} \
+                            --wait --timeout=5m
+                    """
+                }
+                echo "Helm deploy complete."
+            }
+        }
+
+        // --- Stage 5: Smoke Test ---
+        stage('Smoke Test') {
+            steps {
+                sh """
+                    echo "Performing smoke test on application..."
+                    curl -k ${APP_HEALTH_URL}
+                    echo "Smoke test PASSED (Got a response)."
+                """
+            }
+        }
+        
+        // --- Stage 6: Notification ---
+        stage('Notification') {
+            steps {
+                echo "Sending success email..."
+                mail to: 'hassanomar4700@gmail.com',
+                     subject: "SUCCESS: Build #${env.BUILD_NUMBER} (${env.JOB_NAME})",
+                     body: """\
+                       Build successful.
+                       Project: ${env.JOB_NAME}
+                       Build URL: ${env.BUILD_URL}
+                       """
+            }
+        }
+
+    } // End of stages
+    // 4. Post Actions
+    post {
+        failure {
+            mail to: 'hassanomar4700@gmail.com',
+                 subject: "FAILED: Build #${env.BUILD_NUMBER} (${env.JOB_NAME})",
+                 body: """\
+                   Build FAILED.
+                   Project: ${env.JOB_NAME}
+                   Build URL: ${env.BUILD_URL}
+                   Check logs for details.
+                   """
+        }
+    }
+}

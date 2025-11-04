@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: omar4700/nginx_proxy:v1.1
+          ports:
+            - containerPort: 80
+            - containerPort: 443
+          volumeMounts:
+            - name: nginx-config-volume
+              mountPath: /etc/nginx/conf.d
+            - name: nginx-tls-volume
+              mountPath: /etc/nginx/ssl
+      volumes:
+        - name: nginx-config-volume
+          configMap:
+            name: nginx-config
+        - name: nginx-tls-volume
+          secret:
+            secretName: nginx-tls-secret

@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api-container
+          image: omar4700/api:v1.0 
+          ports:
+            - containerPort: 8000
+          # --- The Fix is in this section ---
+          volumeMounts:
+            - name: db-password-volume
+              # Mount the file directly to the full path
+              mountPath: /run/secrets/db-password
+              # Specify which key from the secret to use as the file
+              subPath: password
+              readOnly: true
+      volumes:
+        - name: db-password-volume
+          secret:
+            secretName: db-secret

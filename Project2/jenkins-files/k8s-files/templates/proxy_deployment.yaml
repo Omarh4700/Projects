@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: proxy-deployment
+  labels:
+    app: proxy-deployment
+spec:
+  selector:
+    matchLabels:
+      app: proxy
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: proxy
+    spec:
+      containers:
+      - name: proxy
+        image: {{ .Values.proxy.image.repository }}:{{ .Values.proxy.image.tag }}
+        ports:
+        - containerPort: 443
